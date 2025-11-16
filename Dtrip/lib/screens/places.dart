@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-//import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/tab_bar.dart'; // tab_bar.dart
-import 'package:cloud_firestore/cloud_firestore.dart'; // DB 연결용
+import '../screens/all_places.dart';
+import '../services/place_data.dart';
+import '../models/place_model.dart';
 
 class PlacesScreen extends StatelessWidget {
   const PlacesScreen({super.key});
@@ -21,6 +23,7 @@ class PlacesScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 40), // 위, 아래 공간 확보
+
                   Container(
                     // 광고 창
                     height: 160,
@@ -49,8 +52,14 @@ class PlacesScreen extends StatelessWidget {
 
                       GestureDetector(
                         onTap: () {
-                          print("See all 클릭");
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AllPlacesScreen(),
+                            ),
+                          );
                         },
+
                         child: Text(
                           "See all",
                           style: TextStyle(
@@ -68,254 +77,159 @@ class PlacesScreen extends StatelessWidget {
                   // Popular 장소 패널
                   SizedBox(
                     height: 200,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        // 1번째 장소
-                        Container(
-                          width: 150,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withValues(alpha: 0.2),
-                                offset: const Offset(0, 2),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20),
-                                ),
-                                child: Container(
-                                  width: double.infinity,
-                                  height: 100,
-                                  color: Colors.blueGrey,
-                                  child: Image.asset(
-                                    "assets/Places/sung/sung1.png",
-                                    width: double.infinity,
-                                    height: 100,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
+                    child: FutureBuilder(
+                      future: FirebaseFirestore.instance
+                          .collection('Places')
+                          .limit(5)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Text("Error: ${snapshot.error}"),
+                          );
+                        }
 
-                              Padding(
-                                padding: const EdgeInsets.all(5),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      // 장소 이름
-                                      "성심당 본점",
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
+                        }
+
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return Center(child: Text("데이터 없음"));
+                        }
+
+                        final docs = snapshot.data!.docs;
+
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: docs.length + 1, // 마지막 카드 = '자세히 보기'
+                          itemBuilder: (context, index) {
+                            // 🔥 '자세히 보기' 버튼
+                            if (index == docs.length) {
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => AllPlacesScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  width: 150,
+                                  margin: EdgeInsets.only(right: 10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      "자세히 보기",
                                       style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    SizedBox(height: 5),
-                                    Text(
-                                      // 장소 주소
-                                      "대전광역시 중구 대종로\n480번길 15 (은행동 145)",
-                                      style: TextStyle(fontSize: 11),
-                                      softWrap: true,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            final data = docs[index].data();
+
+                            return Container(
+                              width: 150,
+                              margin: EdgeInsets.only(right: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withValues(alpha: 0.2),
+                                    offset: Offset(0, 2),
+                                    blurRadius: 10,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // 📌 이미지 영역
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20),
                                     ),
-                                    SizedBox(height: 10),
-                                    Row(
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: 100,
+                                      child: Image.asset(
+                                        "assets/Places/sung/sung1.png", // Firestore에 이미지 경로 저장해두면 됨
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+
+                                  // 📌 텍스트 영역
+                                  Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Icon(
-                                          Icons.favorite,
-                                          color: Colors.red,
-                                          size: 14,
-                                        ),
-                                        SizedBox(width: 2),
+                                        // 이름
                                         Text(
-                                          // 좋아요 표시
-                                          "666명이 좋아함",
+                                          data['name'],
                                           style: TextStyle(
-                                            fontSize: 10,
+                                            fontSize: 15,
                                             fontWeight: FontWeight.bold,
                                           ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+
+                                        SizedBox(height: 4),
+
+                                        // 주소
+                                        Text(
+                                          data['address'],
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.black87,
+                                          ),
+                                          softWrap: true,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+
+                                        SizedBox(height: 8),
+
+                                        // 좋아요 수
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.favorite,
+                                              color: Colors.red,
+                                              size: 14,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              "${data['favorite']}명이 좋아함",
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        SizedBox(width: 15),
-
-                        // 2번째 장소
-                        Container(
-                          width: 150,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withValues(alpha: 0.2),
-                                offset: const Offset(0, 2),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 1) 사진 영역
-                              ClipRRect(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20),
-                                ),
-                                child: Container(
-                                  width: double.infinity,
-                                  height: 100,
-                                  color: Colors.blueGrey,
-                                  child: Image.asset(
-                                    "assets/Places/sung/sung1.png",
-                                    width: double.infinity,
-                                    height: 100,
-                                    fit: BoxFit.cover,
                                   ),
-                                ),
+                                ],
                               ),
-
-                              Padding(
-                                padding: const EdgeInsets.all(5),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "성심당 본점",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    SizedBox(height: 5),
-                                    Text(
-                                      "대전광역시 중구 대종로\n480번길 15 (은행동 145)",
-                                      style: TextStyle(fontSize: 11),
-                                      softWrap: true,
-                                    ),
-                                    SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.favorite,
-                                          color: Colors.red,
-                                          size: 14,
-                                        ),
-                                        SizedBox(width: 2),
-                                        Text(
-                                          // 좋아요 표시
-                                          "666명이 좋아함",
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        SizedBox(width: 15),
-
-                        // 3번째 장소
-                        Container(
-                          width: 150,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withValues(alpha: 0.2),
-                                offset: const Offset(0, 2),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 1) 사진 영역
-                              ClipRRect(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20),
-                                ),
-                                child: Container(
-                                  width: double.infinity,
-                                  height: 100,
-                                  color: Colors.blueGrey,
-                                  child: Image.asset(
-                                    "assets/Places/sung/sung1.png",
-                                    width: double.infinity,
-                                    height: 100,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-
-                              Padding(
-                                padding: const EdgeInsets.all(5),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "성심당 본점",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    SizedBox(height: 5),
-                                    Text(
-                                      "대전광역시 중구 대종로\n480번길 15 (은행동 145)",
-                                      style: TextStyle(fontSize: 11),
-                                      softWrap: true,
-                                    ),
-                                    SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.favorite,
-                                          color: Colors.red,
-                                          size: 14,
-                                        ),
-                                        SizedBox(width: 2),
-                                        Text(
-                                          // 좋아요 표시
-                                          "666명이 좋아함",
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
 
@@ -334,14 +248,19 @@ class PlacesScreen extends StatelessWidget {
 
                       GestureDetector(
                         onTap: () {
-                          print("See all 클릭");
-                          // 자세히 보기 페이지로 이동시키면 됨
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AllPlacesScreen(),
+                            ),
+                          );
                         },
+
                         child: Text(
                           "See all",
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.blue, // 링크처럼 보이게
+                            color: Colors.blue,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -351,146 +270,162 @@ class PlacesScreen extends StatelessWidget {
 
                   const SizedBox(height: 10),
 
-                  // Recommend 패널
+                  // Recommend 장소 패널
                   SizedBox(
                     height: 200,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        Container(
-                          width: 150,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withValues(alpha: 0.2),
-                                offset: const Offset(0, 2),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20),
-                                ),
+                    child: FutureBuilder(
+                      future: FirebaseFirestore.instance
+                          .collection('Places')
+                          .limit(5)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Text("Error: ${snapshot.error}"),
+                          );
+                        }
+
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
+                        }
+
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return Center(child: Text("데이터 없음"));
+                        }
+
+                        final docs = snapshot.data!.docs;
+
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: docs.length + 1, // 마지막 카드 = '자세히 보기'
+                          itemBuilder: (context, index) {
+                            // 🔥 '자세히 보기' 버튼
+                            if (index == docs.length) {
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => AllPlacesScreen(),
+                                    ),
+                                  );
+                                },
                                 child: Container(
-                                  width: double.infinity,
-                                  height: 100,
-                                  color: Colors.blueGrey,
-                                  child: Image.asset(
-                                    "assets/Places/sung/sung1.png",
-                                    width: double.infinity,
-                                    height: 100,
-                                    fit: BoxFit.cover,
+                                  width: 150,
+                                  margin: EdgeInsets.only(right: 10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      "자세히 보기",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                              );
+                            }
 
-                              Padding(
-                                padding: const EdgeInsets.all(5),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "성심당 본점",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    SizedBox(height: 5),
-                                    Text(
-                                      "대전광역시 중구 대종로\n480번길 15 (은행동 145)",
-                                      style: TextStyle(fontSize: 11),
-                                      softWrap: true,
-                                    ),
-                                    SizedBox(height: 10),
-                                    Text(
-                                      "666명이 좋아함",
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                            final data = docs[index].data();
 
-                        SizedBox(width: 15),
-
-                        Container(
-                          width: 150,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withValues(alpha: 0.2),
-                                offset: const Offset(0, 2),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20),
-                                ),
-                                child: Container(
-                                  width: double.infinity,
-                                  height: 100,
-                                  color: Colors.blueGrey,
-                                  child: Image.asset(
-                                    "assets/Places/sung/sung1.png",
-                                    width: double.infinity,
-                                    height: 100,
-                                    fit: BoxFit.cover,
+                            return Container(
+                              width: 150,
+                              margin: EdgeInsets.only(right: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withValues(alpha: 0.2),
+                                    offset: Offset(0, 2),
+                                    blurRadius: 10,
                                   ),
-                                ),
+                                ],
                               ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // 📌 이미지 영역
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20),
+                                    ),
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: 100,
+                                      child: Image.asset(
+                                        "assets/Places/sung/sung1.png", // Firestore에 이미지 경로 저장해두면 됨
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
 
-                              Padding(
-                                padding: const EdgeInsets.all(5),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "성심당 본점",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                  // 📌 텍스트 영역
+                                  Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // 이름
+                                        Text(
+                                          data['name'],
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+
+                                        SizedBox(height: 4),
+
+                                        // 주소
+                                        Text(
+                                          data['address'],
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.black87,
+                                          ),
+                                          softWrap: true,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+
+                                        SizedBox(height: 8),
+
+                                        // 좋아요 수
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.favorite,
+                                              color: Colors.red,
+                                              size: 14,
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              "${data['favorite']}명이 좋아함",
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                    SizedBox(height: 5),
-                                    Text(
-                                      "대전광역시 중구 대종로\n480번길 15 (은행동 145)",
-                                      style: TextStyle(fontSize: 11),
-                                      softWrap: true,
-                                    ),
-                                    SizedBox(height: 10),
-                                    Text(
-                                      "666명이 좋아함",
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
 
