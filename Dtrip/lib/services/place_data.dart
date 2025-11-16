@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/place_model.dart';
+import '../models/database.dart';
 
 class PlaceService {
   final CollectionReference placesRef = FirebaseFirestore.instance.collection(
@@ -14,3 +14,4 @@ class PlaceService {
         .toList();
   }
 }
+
